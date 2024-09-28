@@ -1,0 +1,87 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: This template deploys an Application Balancer.
+Parameters:
+
+  ENVname:
+    Description: "Server Environment name."
+    ConstraintDescription: "Choose an Environment from the drop down"
+    Type: "String"
+    AllowedValues: 
+      - "dev"
+      - "test"
+      - "staging"
+      - "prod"
+
+  VPC:
+    Description: VPC where we deploy this ALB.
+    Type: AWS::EC2::VPC::Id
+
+  PublicSubnets:
+    Description: List of public subnets to deploy the ALB
+    Type: List<AWS::EC2::Subnet::Id>
+
+  ALBSG:
+    Description: Security Group for Application Load Balancer.
+    Type: AWS::EC2::SecurityGroup::Id
+
+Resources:
+  myALB:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: myALB
+      SecurityGroups:
+        - Ref: ALBSG
+      Subnets:
+        Ref: PublicSubnets
+      Tags:
+      - Key: Environment
+        Value:
+          Ref: ENVname
+
+  ALBListenerNoSSLCertificate:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref ALBTargetGroup
+      LoadBalancerArn:
+        Ref: myALB
+      Port: 80
+      Protocol: "HTTP"
+
+  ALBTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: MyWebAppServers
+      Port: 80
+      Protocol: HTTP
+      UnhealthyThresholdCount: 5
+      VpcId:
+        Ref: VPC
+      HealthCheckIntervalSeconds: 10
+      HealthCheckPath: /
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      Matcher:
+        HttpCode: "200-302"
+
+Outputs:
+
+  ALBTargetGroup:
+    Description: Web App target group
+    Value:
+      Ref: ALBTargetGroup
+    Export:
+      Name: !Sub ${AWS::StackName}-ALBTargetGroup
+
+  AlbDnsName:
+    Description: ALB DNS Name
+    Value: !GetAtt myALB.DNSName
+    Export:
+      Name: !Sub ${AWS::StackName}-AlbDnsName
+
+  ALBZoneID:
+    Description: Application Load Balancer Canonical Hosted Zone ID
+    Value: !GetAtt myALB.CanonicalHostedZoneID
+    Export:
+      Name: !Sub ${AWS::StackName}-ALBZoneID

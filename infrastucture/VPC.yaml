@@ -1,0 +1,416 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Creating a Highly Available 3 Tier Web App Architecture.
+
+Parameters:
+
+  ENVname:
+    Description: "Server Environment name."
+    ConstraintDescription: "Choose an Environment from the drop down"
+    Type: "String"
+    AllowedValues: 
+      - "dev"
+      - "test"
+      - "staging"
+      - "prod"
+
+  ProjectName:
+    Description: Please input project name.
+    Type: String
+    Default: WebApp
+
+  VpcName:
+    Description: Please input VPC name.
+    Type: String
+
+  VpcCidrBlock:
+    Description: Please input VPC's CIDR Block.
+    Type: String
+
+  PublicSubnetCidr1:
+    Description: Please input the CIDR block of the first public subnet.
+    Type: String
+
+  PublicSubnetCidr2:
+    Description: Please input the CIDR block of the second public Subnet.
+    Type: String
+
+  AppSubnetCidr1:
+    Description: Please input the CIDR block of the first app subnet.
+    Type: String
+
+  AppSubnetCidr2:
+    Description: Please input the CIDR block of the second app Subnet.
+    Type: String
+
+  DataSubnetCidr1:
+    Description: Please input the CIDR block of the first data subnet.
+    Type: String
+
+  DataSubnetCidr2:
+    Description: Please input the CIDR block of the second data subnet.
+    Type: String
+
+Resources:
+  myVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock:
+        Ref: VpcCidrBlock
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+      - Key: Project
+        Value:
+          Ref: ProjectName
+      - Key: Name
+        Value:
+          Ref: VpcName
+      - Key: Environment
+        Value:
+          Ref: ENVname
+
+  myInternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+      - Key: Environment
+        Value:
+          Ref: ENVname
+      - Key: Name
+        Value: myInternetGateway
+
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId:
+        Ref: myVPC
+      InternetGatewayId:
+        Ref: myInternetGateway
+
+  myPublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      MapPublicIpOnLaunch: True
+      VpcId:
+        Ref: myVPC
+      CidrBlock:
+        Ref: PublicSubnetCidr1
+      AvailabilityZone: !Select [ '0', !GetAZs ]
+      Tags:
+      - Key: Environment
+        Value:
+          Ref: ENVname
+      - Key: Name
+        Value: myPublicSubnet1
+
+  myPublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      MapPublicIpOnLaunch: True
+      VpcId:
+        Ref: myVPC
+      CidrBlock:
+        Ref: PublicSubnetCidr2
+      AvailabilityZone: !Select [ '1', !GetAZs ]
+      Tags:
+      - Key: Environment
+        Value:
+          Ref: ENVname
+      - Key: Name
+        Value: myPublicSubnet2
+
+  myAppSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Ref: myVPC
+      CidrBlock:
+        Ref: AppSubnetCidr1
+      AvailabilityZone: !Select [ '0', !GetAZs ]
+      Tags:
+      - Key: Environment
+        Value:
+          Ref: ENVname
+      - Key: Name
+        Value: myAppSubnet1
+
+  myAppSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Ref: myVPC
+      CidrBlock:
+        Ref: AppSubnetCidr2
+      AvailabilityZone: !Select [ '1', !GetAZs ]
+      Tags:
+      - Key: Environment
+        Value:
+          Ref: ENVname
+      - Key: Name
+        Value: myAppSubnet2
+
+  myDataSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Ref: myVPC
+      CidrBlock:
+        Ref: DataSubnetCidr1
+      AvailabilityZone: !Select [ '0', !GetAZs ]
+      Tags:
+      - Key: Environment
+        Value:
+          Ref: ENVname
+      - Key: Name
+        Value: myDataSubnet1
+
+  myDataSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Ref: myVPC
+      CidrBlock:
+        Ref: DataSubnetCidr2
+      AvailabilityZone: !Select [ '1', !GetAZs ]
+      Tags:
+      - Key: Environment
+        Value:
+          Ref: ENVname
+      - Key: Name
+        Value: myDataSubnet2
+
+  myPublicRT:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:  
+        Ref: myVPC
+      Tags:
+      - Key: Environment
+        Value:
+          Ref: ENVname
+      - Key: Name
+        Value: myPublicRT
+
+  RouteToInternet:
+    Type: AWS::EC2::Route
+    Properties:
+       RouteTableId:
+         Ref: myPublicRT
+       DestinationCidrBlock: 0.0.0.0/0
+       GatewayId:
+         Ref: myInternetGateway
+
+  myPublicSubnetRTA1:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId:
+        Ref: myPublicSubnet1
+      RouteTableId:
+        Ref: myPublicRT
+
+  myPublicSubnetRTA2:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId:
+        Ref: myPublicSubnet2
+      RouteTableId:
+        Ref: myPublicRT
+
+  myAppRT:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:  
+        Ref: myVPC
+      Tags:
+      - Key: Environment
+        Value:
+          Ref: ENVname
+      - Key: Name
+        Value: myAppRT
+
+  myAppSubnetRTA1:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId:
+        Ref: myAppSubnet1
+      RouteTableId:
+        Ref: myAppRT
+
+  myAppSubnetRTA2:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId:
+        Ref: myAppSubnet2
+      RouteTableId:
+        Ref: myAppRT
+
+  myDataRT:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:  
+        Ref: myVPC
+      Tags:
+      - Key: Environment
+        Value:
+          Ref: ENVname
+      - Key: Name
+        Value: myDataRT
+
+  myDataSubnetRTA1:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId:
+        Ref: myDataSubnet1
+      RouteTableId:
+        Ref: myDataRT
+
+  myDataSubnetRTA2:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId:
+        Ref: myDataSubnet2
+      RouteTableId:
+        Ref: myDataRT
+        
+  NATGatewayEIP1:
+    Type: AWS::EC2::EIP
+    DependsOn: AttachGateway
+    Properties:
+      Domain: vpc
+
+  NATGatewayEIP2:
+    Type: AWS::EC2::EIP
+    DependsOn: AttachGateway
+    Properties:
+      Domain: vpc
+
+  NATGateway1:
+    Type: AWS::EC2::NatGateway
+    DependsOn: AttachGateway
+    Properties:
+      AllocationId: !GetAtt NATGatewayEIP1.AllocationId
+      SubnetId:
+        Ref: myPublicSubnet1
+      Tags:
+      - Key: Environment
+        Value:
+          Ref: ENVname
+      - Key: Name
+        Value: NATGateway1
+
+  NATGateway2:
+    Type: AWS::EC2::NatGateway
+    DependsOn: AttachGateway
+    Properties:
+      AllocationId: !GetAtt NATGatewayEIP2.AllocationId
+      SubnetId:
+        Ref: myPublicSubnet2
+      Tags:
+      - Key: Environment
+        Value: 
+          Ref: ENVname
+      - Key: Name
+        Value: NATGateway2
+
+  RouteToNATGateway1:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId:
+        Ref: myAppRT
+      DestinationCidrBlock: '0.0.0.0/0'
+      NatGatewayId:
+        Ref: NATGateway1
+
+  RouteToNATGateway2:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId:
+        Ref: myDataRT
+      DestinationCidrBlock: '0.0.0.0/0'
+      NatGatewayId:
+        Ref: NATGateway2
+
+  myNetworkAcl:
+    Type: AWS::EC2::NetworkAcl
+    Properties:
+      VpcId:
+        Ref: myVPC
+      Tags:
+      - Key: Environment
+        Value:
+          Ref: ENVname
+      - Key: Name
+        Value: myNetworkAcl
+
+  myPublicSubnetNetworkAclAssociation1:
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Properties:
+      SubnetId:
+        Ref: myPublicSubnet1
+      NetworkAclId:
+        Ref: myNetworkAcl
+
+  myPublicSubnetNetworkAclAssociation2:
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Properties:
+      SubnetId:
+        Ref: myPublicSubnet2
+      NetworkAclId:
+        Ref: myNetworkAcl
+
+  myAppSubnetNetworkAclAssociation1:
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Properties:
+      SubnetId:
+        Ref: myAppSubnet1
+      NetworkAclId:
+        Ref: myNetworkAcl
+
+  myAppSubnetNetworkAclAssociation2:
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Properties:
+      SubnetId:
+        Ref: myAppSubnet2
+      NetworkAclId:
+        Ref: myNetworkAcl
+
+  myDataSubnetNetworkAclAssociation1:
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Properties:
+      SubnetId:
+        Ref: myDataSubnet1
+      NetworkAclId:
+        Ref: myNetworkAcl
+
+  myDataSubnetNetworkAclAssociation2:
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Properties:
+      SubnetId:
+        Ref: myDataSubnet2
+      NetworkAclId:
+        Ref: myNetworkAcl
+
+Outputs:
+  VPC:
+    Description: A reference to the created VPC.
+    Value:
+      Ref: myVPC
+    Export:
+      Name: !Sub "${ENVname}-VPC"
+      
+  DBSubnets:
+    Description: "A list of the Database Subnets"
+    Value: !Join [ ",", [ !Ref "myDataSubnet1", !Ref "myDataSubnet2" ]]
+    Export:
+      Name: !Sub "${ENVname}-DatabaseSubnets"
+
+  AppSubnets:
+    Description: "A list of the Application Subnets"
+    Value: !Join [ ",", [ !Ref "myAppSubnet1", !Ref "myAppSubnet2" ]]
+    Export:
+      Name: !Sub "${ENVname}-AppSubnets"
+      
+  PublicSubnets:
+    Description: "A list of the Public Subnets"
+    Value: !Join [ ",", [ !Ref "myPublicSubnet1", !Ref "myPublicSubnet2" ]]
+    
