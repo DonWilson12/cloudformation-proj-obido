@@ -9,8 +9,6 @@ Parameters:
     Type: "String"
     AllowedValues: 
       - "dev"
-      - "test"
-      - "staging"
       - "prod"
 
   ProjectName:
