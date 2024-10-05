@@ -1,0 +1,113 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: VPC's Security Groups.
+
+Parameters:
+  ENVname:
+    Description: "Server Environment name."
+    ConstraintDescription: "Choose an Environment from the drop down"
+    Type: "String"
+    AllowedValues: 
+      - "dev"
+      - "prod"
+
+  VPC:
+    Description: "VPC to lunch instances into"
+    Type: AWS::EC2::VPC::Id
+
+Resources:
+  ALBSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for Application Load Balancer.
+      VpcId:
+        Ref: VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: ALBSG
+        - Key: Environment
+          Value:
+            Ref: ENVname
+
+  WEBAPPSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for RDS DB Instance.
+      VpcId:
+        Ref: VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 10.0.0.0/16
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          SourceSecurityGroupId:
+            Ref: ALBSG
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 10.0.0.0/16
+      Tags:
+        - Key: Name
+          Value: WEBAPPSG
+        - Key: Environment
+          Value:
+            Ref: ENVname
+
+  RDSSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for RDS DB Instance.
+      VpcId:
+        Ref: VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 3306
+          SourceSecurityGroupId:
+            Ref: WEBAPPSG
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 10.0.0.0/16
+      Tags:
+        - Key: Name
+          Value: RDSSG
+        - Key: Environment
+          Value:
+            Ref: ENVname
+
+Outputs:
+
+  APPLBSgId:
+    Description: A reference to the security group for ALB.
+    Value:
+      Ref: ALBSG
+    Export:
+      Name: !Sub "${ENVname}-APPLBSgId"
+
+  WEBAPPSgId:
+    Description: A reference to the security group for WebApp.
+    Value:
+      Ref: WEBAPPSG
+    Export:
+      Name: !Sub "${ENVname}-WEBAPPSgId"
+      
+  RDSSgId:
+    Description: A reference to the security group for RDS.
+    Value:
+      Ref: RDSSG
+    Export:
+      Name: !Sub "${ENVname}-RDSSgId"
+      
